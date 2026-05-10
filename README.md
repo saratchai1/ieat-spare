@@ -40,7 +40,7 @@ npm run dev
 ## Flow สำหรับนำเสนอ
 
 1. เปิดศูนย์สั่งการและดูสัญญาณเตือนแรงสั่นสะเทือนวิกฤตของโรงงาน B
-2. เปิดผังดิจิทัลทวิน 3D และเลือกโรงงาน B
+2. เปิดผังดิจิทัลทวินแบบ 2D site plan และเลือกโรงงาน B
 3. เปิดมอเตอร์ที่ได้รับผลกระทบเพื่อดูแรงสั่น อุณหภูมิ กระแสไฟฟ้า ชั่วโมงเดินเครื่อง คะแนนสุขภาพ ประวัติซ่อม และอะไหล่ที่ใช้ร่วมกันได้
 4. เปิดใบแจ้งซ่อมที่เกี่ยวข้อง
 5. จองตลับลูกปืน 6308 จากคลังอะไหล่กลาง
@@ -62,7 +62,7 @@ npm run dev
 ## หน้าหลักในระบบ
 
 - `/` - ศูนย์สั่งการผู้บริหาร
-- `/twin-map` - ผังดิจิทัลทวินสามมิติของนิคมแหลมฉบัง
+- `/twin-map` - ผังดิจิทัลทวินแบบ 2D site plan ของนิคมแหลมฉบัง
 - `/assets` - ทะเบียนเครื่องจักร
 - `/inventory` - คลังอะไหล่กลาง
 - `/tickets` - ระบบใบแจ้งซ่อม
@@ -79,4 +79,17 @@ npm run dev
 npm run lint
 npm run build
 ```
+
+## Deploy บน Vercel
+
+โปรเจกต์นี้ใช้ SQLite สำหรับเดโม จึง bundle ไฟล์ `prisma/dev.db` ไปกับ repo และเมื่อรันบน Vercel แอปจะ copy ฐานข้อมูลไปไว้ที่ `/tmp/ieat-spare-demo.db` ก่อนเปิด Prisma Client เพื่อให้ serverless function อ่านและเขียนข้อมูลเดโมได้ใน instance นั้น
+
+ตั้งค่า Vercel ได้ตามค่า default:
+
+- Build Command: `npm run build`
+- Install Command: `npm install`
+- Output Directory: ปล่อยว่าง
+- Environment Variables: ไม่ต้องตั้ง `DATABASE_URL` สำหรับเดโมนี้
+
+ถ้าเคย deploy แล้วขึ้น `This page couldn't load` ให้ push commit ล่าสุดขึ้น GitHub แล้วกด Redeploy บน Vercel
 # ieat-spare

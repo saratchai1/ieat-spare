@@ -17,6 +17,7 @@
 /.next/
 /out/
 prisma/dev.db*
+!prisma/dev.db
 
 # production
 /build
