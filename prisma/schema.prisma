@@ -1,0 +1,269 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  FACTORY_USER
+  TECHNICIAN
+  WAREHOUSE
+}
+
+enum FactoryStatus {
+  NORMAL
+  WARNING
+  CRITICAL
+  UNDER_MAINTENANCE
+}
+
+enum AssetType {
+  PUMP
+  MOTOR
+  CONVEYOR
+  COMPRESSOR
+  BOILER
+  COOLING_TOWER
+  ELECTRICAL_PANEL
+}
+
+enum AssetStatus {
+  NORMAL
+  WARNING
+  CRITICAL
+  UNDER_MAINTENANCE
+  OFFLINE
+}
+
+enum Criticality {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum PartCategory {
+  BEARING
+  MOTOR_DRIVE
+  BELT_SEAL
+  CONTROL_SENSOR
+  FILTER
+  ELECTRICAL
+  PUMP_VALVE
+}
+
+enum TransactionType {
+  STOCK_IN
+  STOCK_OUT
+  RESERVE
+  RELEASE
+  ADJUSTMENT
+}
+
+enum TicketStatus {
+  NEW
+  APPROVED
+  ASSIGNED
+  IN_PROGRESS
+  WAITING_FOR_PARTS
+  COMPLETED
+  CANCELLED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum MaintenanceType {
+  PREVENTIVE
+  CORRECTIVE
+  EMERGENCY
+}
+
+enum TechnicianAvailability {
+  AVAILABLE
+  ASSIGNED
+  OFF_DUTY
+}
+
+enum AlertLevel {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+model Factory {
+  id            String            @id @default(cuid())
+  code          String            @unique
+  name          String
+  zone          String
+  status        FactoryStatus
+  riskLevel     Int
+  contactPerson String
+  phone         String
+  description   String
+  createdAt     DateTime          @default(now())
+  assets        Asset[]
+  tickets       MaintenanceTicket[]
+  alerts        Alert[]
+  users         User[]
+}
+
+model Asset {
+  id                String              @id @default(cuid())
+  assetCode         String              @unique
+  factoryId         String
+  type              AssetType
+  name              String
+  brandModel        String
+  operatingHours    Int
+  healthScore       Int
+  lastMaintenanceAt DateTime
+  nextPmAt          DateTime
+  criticality       Criticality
+  status            AssetStatus
+  installDate       DateTime
+  factory           Factory             @relation(fields: [factoryId], references: [id], onDelete: Cascade)
+  sensorReadings    SensorReading[]
+  alerts            Alert[]
+  tickets           MaintenanceTicket[]
+}
+
+model SparePart {
+  id                       String                   @id @default(cuid())
+  partCode                 String                   @unique
+  name                     String
+  category                 PartCategory
+  compatibleEquipmentTypes String
+  currentStock             Int
+  reservedStock            Int
+  minStockLevel            Int
+  unitPrice                Float
+  supplier                 String
+  leadTimeDays             Int
+  warehouseLocation        String
+  compatibilities          SparePartCompatibility[]
+  transactions             InventoryTransaction[]
+  requestedTickets         MaintenanceTicket[]      @relation("RequestedPart")
+  usedTickets              MaintenanceTicket[]      @relation("UsedPart")
+}
+
+model SparePartCompatibility {
+  id          String    @id @default(cuid())
+  sparePartId String
+  assetType   AssetType
+  sparePart   SparePart @relation(fields: [sparePartId], references: [id], onDelete: Cascade)
+
+  @@unique([sparePartId, assetType])
+}
+
+model InventoryTransaction {
+  id          String          @id @default(cuid())
+  sparePartId String
+  type        TransactionType
+  quantity    Int
+  reference   String
+  ticketId    String?
+  actor       String
+  createdAt   DateTime        @default(now())
+  sparePart   SparePart       @relation(fields: [sparePartId], references: [id], onDelete: Cascade)
+}
+
+model MaintenanceTicket {
+  id                   String           @id @default(cuid())
+  ticketCode           String           @unique
+  factoryId            String
+  assetId              String
+  description          String
+  priority             TicketPriority
+  status               TicketStatus
+  maintenanceType      MaintenanceType
+  preferredServiceTime DateTime?
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+  assignedAt           DateTime?
+  completedAt          DateTime?
+  downtimeHours        Float
+  estimatedHours       Float
+  factory              Factory          @relation(fields: [factoryId], references: [id], onDelete: Cascade)
+  asset                Asset            @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  technicianId         String?
+  technician           Technician?      @relation(fields: [technicianId], references: [id])
+  requestedPartId      String?
+  requestedPart        SparePart?       @relation("RequestedPart", fields: [requestedPartId], references: [id])
+  usedPartId           String?
+  usedPart             SparePart?       @relation("UsedPart", fields: [usedPartId], references: [id])
+  notes                WorkOrderNote[]
+}
+
+model Technician {
+  id           String                 @id @default(cuid())
+  name         String
+  skillType    String
+  phone        String
+  availability TechnicianAvailability
+  workload     Int
+  currentJob   String?
+  baseZone     String
+  tickets      MaintenanceTicket[]
+  notes        WorkOrderNote[]
+  user         User?
+}
+
+model WorkOrderNote {
+  id           String             @id @default(cuid())
+  ticketId     String
+  technicianId String?
+  author       String
+  content      String
+  createdAt    DateTime           @default(now())
+  ticket       MaintenanceTicket  @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  technician   Technician?        @relation(fields: [technicianId], references: [id])
+}
+
+model SensorReading {
+  id           String   @id @default(cuid())
+  assetId      String
+  capturedAt   DateTime
+  vibration    Float
+  temperature  Float
+  runtimeHours Int
+  currentAmp   Float
+  pressureBar  Float
+  healthScore  Int
+  asset        Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+}
+
+model Alert {
+  id                String     @id @default(cuid())
+  factoryId         String
+  assetId           String
+  level             AlertLevel
+  message           String
+  metric            String
+  value             Float
+  threshold         Float
+  recommendedAction String
+  isOpen            Boolean    @default(true)
+  createdAt         DateTime   @default(now())
+  factory           Factory    @relation(fields: [factoryId], references: [id], onDelete: Cascade)
+  asset             Asset      @relation(fields: [assetId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id           String      @id @default(cuid())
+  name         String
+  email        String      @unique
+  role         Role
+  factoryId    String?
+  technicianId String?     @unique
+  factory      Factory?    @relation(fields: [factoryId], references: [id])
+  technician   Technician? @relation(fields: [technicianId], references: [id])
+}
